@@ -10,9 +10,9 @@ export default function StatsPage() {
   const params = useParams();
   const router = useRouter();
   const code = params?.code;
-  
+
   console.log('Stats page - code from params:', code);
-  
+
   const [link, setLink] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,7 +27,7 @@ export default function StatsPage() {
       setLoading(false);
       return;
     }
-    
+
     try {
       setLoading(true);
       setError(null);

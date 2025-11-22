@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { generateCode, validateCode, validateUrl } from '@/lib/utils';
 
-// Initialize database on first import
 let dbInitialized = false;
 async function ensureDbInitialized() {
   if (!dbInitialized) {
@@ -12,14 +11,13 @@ async function ensureDbInitialized() {
   }
 }
 
-// GET /api/links - List all links
 export async function GET(request) {
   try {
     await ensureDbInitialized();
-    
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
-    
+
     let result;
     if (search) {
       result = await query(
@@ -36,7 +34,7 @@ export async function GET(request) {
          ORDER BY created_at DESC`
       );
     }
-    
+
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error fetching links:', error);
@@ -47,25 +45,22 @@ export async function GET(request) {
   }
 }
 
-// POST /api/links - Create a link
 export async function POST(request) {
   try {
     await ensureDbInitialized();
-    
+
     const body = await request.json();
     const { target_url, code: customCode } = body;
-    
+
     console.log('Creating link with:', { target_url, customCode });
-    
-    // Validate URL
+
     if (!target_url || !validateUrl(target_url)) {
       return NextResponse.json(
         { error: 'Invalid URL' },
         { status: 400 }
       );
     }
-    
-    // Generate or validate code
+
     let code = customCode;
     if (code) {
       if (!validateCode(code)) {
@@ -75,7 +70,6 @@ export async function POST(request) {
         );
       }
     } else {
-      // Generate unique code
       let attempts = 0;
       do {
         code = generateCode(6);
@@ -90,7 +84,7 @@ export async function POST(request) {
         }
       } while (true);
     }
-    
+
     // Check if code already exists
     const existing = await query('SELECT code FROM links WHERE code = $1', [code]);
     if (existing.rows.length > 0) {
@@ -99,15 +93,14 @@ export async function POST(request) {
         { status: 409 }
       );
     }
-    
-    // Insert new link
+
     const result = await query(
       `INSERT INTO links (code, target_url) 
        VALUES ($1, $2) 
        RETURNING code, target_url, total_clicks, last_clicked, created_at`,
       [code, target_url]
     );
-    
+
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating link:', error);
@@ -116,15 +109,14 @@ export async function POST(request) {
       code: error.code,
       stack: error.stack
     });
-    
-    if (error.code === '23505') { // Unique violation
+
+    if (error.code === '23505') {
       return NextResponse.json(
         { error: 'Code already exists' },
         { status: 409 }
       );
     }
-    
-    // Return more detailed error message
+
     const errorMessage = error.message || 'Failed to create link';
     return NextResponse.json(
       { error: errorMessage },
